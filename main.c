@@ -5,6 +5,7 @@
 #include "points.h"
 #include "particules.h"
 #include "forces.h"
+#include "obstacles.h"
 
 //-----------------------------------------------------------------------------
 // Déclaration des types
@@ -18,6 +19,7 @@ typedef struct SContexte {
     int height;
     GtkWidget *drawing_area;
     TabParticules TabP;
+    TabObstacles TabO;
     Force forces[NB_FORCES];
     GtkWidget *label_nb;
     GtkWidget *label_distance;
@@ -146,6 +148,8 @@ void fontaineVariable(Contexte *pCtxt,
                       double p, double var,
                       double x, double y, double vx, double vy, double m);
 
+gboolean mouse_clic_reaction(GtkWidget *widget, GdkEventButton *event, gpointer data);
+
 
 //-----------------------------------------------------------------------------
 // Programme principal
@@ -154,6 +158,7 @@ int main(int argc,
          char *argv[]) {
     Contexte context;
     TabParticules_init(&context.TabP);
+    TabObstacles_init(&context.TabO);
 
     /* Passe les arguments à GTK, pour qu'il extrait ceux qui le concernent. */
     gtk_init(&argc, &argv);
@@ -166,17 +171,16 @@ int main(int argc,
     return 0;
 }
 
-gboolean
-realize_evt_reaction(GtkWidget *widget, gpointer data) { // force un événement "expose" juste derrière.
+gboolean realize_evt_reaction(GtkWidget *widget, gpointer data) { // force un événement "expose" juste derrière.
     gtk_widget_queue_draw(widget);
     return TRUE;
 }
 
-gboolean
-expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
+gboolean expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
     // c'est la réaction principale qui va redessiner tout.
     Contexte *pCtxt = (Contexte *) data;
     TabParticules *ptrP = &(pCtxt->TabP);
+    TabObstacles *ptrO = &(pCtxt->TabO);
     // c'est la structure qui permet d'afficher dans une zone de dessin
     // via Cairo
     cairo_t *cr = gdk_cairo_create(widget->window);
@@ -187,6 +191,17 @@ expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
     cairo_set_source_rgb(cr, 0, 0, 1);
     for (int i = 0; i < TabParticules_nb(ptrP); ++i) {
         drawParticule(pCtxt, cr, TabParticules_get(ptrP, i));
+    }
+
+    // Affiche tous les obstacle
+    for (int i = 0; i < TabObstacles_nb(ptrO); ++i) {
+        Obstacle o = TabObstacles_get(ptrO, i);
+        cairo_set_source_rgb(cr, o.cr, o.cg, o.cb);
+        Point p;
+        p.x[0] = o.x[0];
+        p.x[1] = o.x[1];
+        p = point2DrawingAreaPoint(pCtxt, p);
+        drawPoint(cr, p.x[0], p.x[1], o.r);
     }
 
     // On a fini, on peut détruire la structure.
@@ -280,6 +295,15 @@ GtkWidget *creerIHM(Contexte *pCtxt) {
     gtk_container_add(GTK_CONTAINER(vbox1), button_quit);
     // Rajoute la vbox  dans le conteneur window.
     gtk_container_add(GTK_CONTAINER(window), vbox1);
+
+    // Connecte la réaction pour le clic gauche
+    g_signal_connect(G_OBJECT(pCtxt->drawing_area), "button_press_event",
+                     G_CALLBACK(mouse_clic_reaction), pCtxt);
+    gtk_widget_set_events(pCtxt->drawing_area, GDK_EXPOSURE_MASK
+                                               | GDK_LEAVE_NOTIFY_MASK
+                                               | GDK_BUTTON_PRESS_MASK
+                                               | GDK_POINTER_MOTION_MASK
+                                               | GDK_POINTER_MOTION_HINT_MASK);
 
     // Rend tout visible
     gtk_widget_show_all(window);
@@ -403,3 +427,20 @@ void deplaceTout(Contexte *pCtxt) {
     }
 }
 
+gboolean mouse_clic_reaction(GtkWidget *widget, GdkEventButton *event, gpointer data) {
+    Contexte *pCtxt = (Contexte *) data;
+    int button = event->button; // 1 is left button
+    if (button != 1) return TRUE;
+    int x = event->x;
+    int y = event->y;
+
+    Obstacle *o = (Obstacle *) malloc(sizeof(Obstacle));
+    Point p;
+    p.x[0] = x;
+    p.x[1] = y;
+    p = drawingAreaPoint2Point(pCtxt, p);
+    initObstacle(o, DISQUE, p.x[0], p.x[1], 10, 0.6, 0, 0, 0);
+    TabObstacles_ajoute(&pCtxt->TabO, *o);
+
+    return TRUE;
+}

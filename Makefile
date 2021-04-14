@@ -10,7 +10,7 @@ GTKLIBS:=$(shell pkg-config --libs gtk+-2.0)
 all: main cleanO
 
 main: main.o points.o particules.o forces.o obstacles.o
-	$(LD) main.o points.o particules.o forces.o $(GTKLIBS) $(LIBS) -o main
+	$(LD) main.o points.o particules.o forces.o obstacles.o $(GTKLIBS) $(LIBS) -o main
 
 main.o: main.c
 	$(CC) -c $(CFLAGS) $(GTKCFLAGS) main.c -o main.o
