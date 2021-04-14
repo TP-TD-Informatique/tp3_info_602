@@ -404,6 +404,34 @@ void calculDynamique(Contexte *pCtxt) {
     }
 }
 
+// Cette fonction n'est appelé que si la particule p déplacée (p.x +
+// DT*p.v) est à l'intérieur du disque B_r(center).  Elle retourne
+// alors le rebond de la particule calculé pour cet obstacle circulaire
+// (nouveau x, nouveau v) en fonction de l'atténuation choisie.  En
+// sortie, la particule est en dehors de l'obstacle.
+Particule calculRebond(Particule p, Point center, double r, double att) {
+    Point xd, v;
+    // Calcule la nouvelle position xd (sans collision) et le vecteur vitesse.
+    xd.x[0] = p.x[0] + DT * p.v[0];
+    xd.x[1] = p.x[1] + DT * p.v[1];
+    v.x[0] = p.v[0];
+    v.x[1] = p.v[1];
+    Point u = Point_normalize(Point_sub(xd, center));
+    double l = Point_norm(Point_sub(xd, center));
+    Point xm = Point_add(center, Point_mul(r + att * (r - l), u));
+    double proj_v = Point_dot(v, u);
+    // réalise le rebond si la particule est bien en train de rentrer dans l'obstacle.
+    if (proj_v < 0.0)
+        v = Point_sub(v, Point_mul(2.0 * proj_v, u));
+    Particule p_out = p;
+    p_out.x[0] = xm.x[0];
+    p_out.x[1] = xm.x[1];
+    p_out.v[0] = att * v.x[0];
+    p_out.v[1] = att * v.x[1];
+    return p_out;
+}
+
+
 void deplaceParticule(Contexte *pCtxt, Particule *p) {
     /* Déplace p */
     TabObstacles *O = &(pCtxt->TabO);
@@ -412,18 +440,22 @@ void deplaceParticule(Contexte *pCtxt, Particule *p) {
     int i = 0;
     while (!collision && i < TabObstacles_nb(O)) {
         Obstacle obs = TabObstacles_get(O, i);
-        if (distance(p->x[0], p->x[1], obs.x[0], obs.x[1]) <= obs.r)
+        if (distance(p->x[0], p->x[1], obs.x[0], obs.x[1]) <= obs.r) {
             collision = true;
+            Point point;
+            point.x[0] = obs.x[0];
+            point.x[1] = obs.x[1];
+            *p = calculRebond(*p, point, obs.r, obs.att);
+        }
 
         i++;
     }
 
-    if (collision) {
-        p->v[0] = 0;
-    }
 
-    p->x[0] += DT * p->v[0];
-    p->x[1] += DT * p->v[1];
+    if (!collision) {
+        p->x[0] += DT * p->v[0];
+        p->x[1] += DT * p->v[1];
+    }
 }
 
 void deplaceTout(Contexte *pCtxt) {
