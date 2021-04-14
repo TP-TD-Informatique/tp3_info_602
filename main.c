@@ -142,6 +142,10 @@ void deplaceParticule(Contexte *pCtxt, Particule *p);
 void fontaine(Contexte *pCtxt, double p,
               double x, double y, double vx, double vy, double m);
 
+void fontaineVariable(Contexte *pCtxt,
+                      double p, double var,
+                      double x, double y, double vx, double vy, double m);
+
 
 //-----------------------------------------------------------------------------
 // Programme principal
@@ -305,9 +309,24 @@ void fontaine(Contexte *pCtxt,
     }
 }
 
+void fontaineVariable(Contexte *pCtxt,
+                      double p, double var,
+                      double x, double y, double vx, double vy, double m) {
+    TabParticules *P = &pCtxt->TabP;
+    if ((rand() / (double) RAND_MAX) < p) {
+        Particule q;
+        double v = (rand() / (double) RAND_MAX) * var;
+        initParticule(&q, x, y, vx - v, vy + v, m);
+        TabParticules_ajoute(P, q);
+    }
+}
+
 gint tic(gpointer data) {
     Contexte *pCtxt = (Contexte *) data;
-    fontaine(pCtxt, 0.25, -0.5, 0.5, 0.3, 0.3, 2.5);
+//    fontaine(pCtxt, 0.25, -0.5, 0.5, 0.3, 0.3, 2.5);
+    fontaineVariable(pCtxt, 0.2, 0.1, -0.5, 0.5, 0.3, 0.3, 1.0);
+    fontaineVariable(pCtxt, 0.25, 0.2, -0.5, 0.5, 0.3, 0.3, 0.5);
+    fontaineVariable(pCtxt, 0.6, 0.18, -0.5, 0.5, 0.3, 0.3, 2.5);
     calculDynamique(pCtxt);
     deplaceTout(pCtxt);
     g_timeout_add(1000 * DT, tic, (gpointer) pCtxt); // réenclenche le timer.
