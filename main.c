@@ -2,6 +2,7 @@
 #include <math.h>
 #include <assert.h>
 #include <gtk/gtk.h>
+#include <stdbool.h>
 #include "points.h"
 #include "particules.h"
 #include "forces.h"
@@ -201,7 +202,7 @@ gboolean expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer 
         p.x[0] = o.x[0];
         p.x[1] = o.x[1];
         p = point2DrawingAreaPoint(pCtxt, p);
-        drawPoint(cr, p.x[0], p.x[1], o.r);
+        drawPoint(cr, p.x[0], p.x[1], 10);
     }
 
     // On a fini, on peut détruire la structure.
@@ -404,7 +405,23 @@ void calculDynamique(Contexte *pCtxt) {
 }
 
 void deplaceParticule(Contexte *pCtxt, Particule *p) {
-    /* Déplace p en supposant qu'il n'y a pas de collision. */
+    /* Déplace p */
+    TabObstacles *O = &(pCtxt->TabO);
+
+    bool collision = false;
+    int i = 0;
+    while (!collision && i < TabObstacles_nb(O)) {
+        Obstacle obs = TabObstacles_get(O, i);
+        if (distance(p->x[0], p->x[1], obs.x[0], obs.x[1]) <= obs.r)
+            collision = true;
+
+        i++;
+    }
+
+    if (collision) {
+        p->v[0] = 0;
+    }
+
     p->x[0] += DT * p->v[0];
     p->x[1] += DT * p->v[1];
 }
@@ -439,7 +456,7 @@ gboolean mouse_clic_reaction(GtkWidget *widget, GdkEventButton *event, gpointer 
     p.x[0] = x;
     p.x[1] = y;
     p = drawingAreaPoint2Point(pCtxt, p);
-    initObstacle(o, DISQUE, p.x[0], p.x[1], 10, 0.6, 0, 0, 0);
+    initObstacle(o, DISQUE, p.x[0], p.x[1], 0.05, 0.6, 0, 0, 0);
     TabObstacles_ajoute(&pCtxt->TabO, *o);
 
     return TRUE;
