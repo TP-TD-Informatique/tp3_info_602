@@ -26,10 +26,11 @@ typedef struct SContexte {
     Force forces[NB_FORCES];
     GtkWidget *label_nb;
     GtkWidget *label_distance;
+    GtkWidget *force_obstacle;
 } Contexte;
 
 // Pas de temps en s
-#define DT 0.01
+#define DT 0.005
 // Pas de temps en s pour le réaffichage
 #define DT_AFF 0.02
 
@@ -182,6 +183,10 @@ gboolean realize_evt_reaction(GtkWidget *widget, gpointer data) { // force un é
     return TRUE;
 }
 
+double min(double a, double b) {
+    return a < b ? a : b;
+}
+
 gboolean expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer data) {
     // c'est la réaction principale qui va redessiner tout.
     Contexte *pCtxt = (Contexte *) data;
@@ -194,9 +199,19 @@ gboolean expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer 
     cairo_paint(cr); // remplit tout dans la couleur choisie.
 
     // Affiche tous les points en bleu.
-    cairo_set_source_rgb(cr, 0, 0, 1);
+    double c1[3] = {0, 0, 1};
+    double c2[3] = {1, 0, 0};
+    double vMax = 1.5;
     for (int i = 0; i < TabParticules_nb(ptrP); ++i) {
-        drawParticule(pCtxt, cr, TabParticules_get(ptrP, i));
+        Particule p = TabParticules_get(ptrP, i);
+        double vitesse = sqrt((p.x[0] * p.x[0]) + (p.x[1] * p.x[1]));
+        double lambda = min(vitesse / vMax, 1.0);
+        cairo_set_source_rgb(cr,
+                             (1 - lambda) * c1[0] + lambda * c2[0],
+                             (1 - lambda) * c1[1] + lambda * c2[1],
+                             (1 - lambda) * c1[2] + lambda * c2[2]
+        );
+        drawParticule(pCtxt, cr, p);
     }
 
     // Affiche tous les obstacle
@@ -210,9 +225,11 @@ gboolean expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer 
         drawPoint(cr, p.x[0], p.x[1], 10);
     }
 
+    /*
     Point bg = {{-10.0, -10.0}};
     Point hd = {{10.0, 10.0}};
     viewerKDTree(pCtxt, cr, Racine(pCtxt->kdtree), bg, hd, 0);
+     */
 
     // On a fini, on peut détruire la structure.
     cairo_destroy(cr);
@@ -299,10 +316,10 @@ GtkWidget *creerIHM(Contexte *pCtxt) {
     /* Crée une fenêtre. */
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     // Crée un conteneur horitzontal box.
-    hbox1 = gtk_hbox_new(FALSE, 10);
+    hbox1 = gtk_hbox_new(TRUE, 10);
     // Crée deux conteneurs vertical box.
     vbox1 = gtk_vbox_new(FALSE, 10);
-    vbox2 = gtk_vbox_new(FALSE, 10);
+    vbox2 = gtk_vbox_new(TRUE, 10);
     // Crée une zone de dessin
     pCtxt->drawing_area = gtk_drawing_area_new();
     pCtxt->width = 500;
@@ -323,6 +340,8 @@ GtkWidget *creerIHM(Contexte *pCtxt) {
     gtk_container_add(GTK_CONTAINER(vbox2), pCtxt->label_nb);
     pCtxt->label_distance = gtk_label_new("");
     gtk_container_add(GTK_CONTAINER(vbox2), pCtxt->label_distance);
+    pCtxt->force_obstacle = gtk_hscale_new_with_range(0, 3, 0.1);
+    gtk_container_add(GTK_CONTAINER(vbox2), pCtxt->force_obstacle);
 
     // Crée le bouton quitter.
     button_quit = gtk_button_new_with_label("Quitter");
@@ -535,7 +554,9 @@ gboolean mouse_clic_reaction(GtkWidget *widget, GdkEventButton *event, gpointer 
     p.x[0] = x;
     p.x[1] = y;
     p = drawingAreaPoint2Point(pCtxt, p);
-    initObstacle(&o, DISQUE, p.x[0], p.x[1], 0.05, 0.6, 0, 0, 0);
+
+    double force = gtk_range_get_value((GtkRange *) pCtxt->force_obstacle);
+    initObstacle(&o, DISQUE, p.x[0], p.x[1], 0.05, force, 0, 0, 0);
     TabObstacles_ajoute(&pCtxt->TabO, o);
     Detruire(pCtxt->kdtree);
     pCtxt->kdtree = KDT_Creer(pCtxt->TabO.obstacles, 0, TabObstacles_nb(&pCtxt->TabO) - 1, 0);
