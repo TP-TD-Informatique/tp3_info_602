@@ -145,5 +145,11 @@ extern Donnee *Valeur(Noeud *N);
 // stockant tous les obstacles spécifiés.
 Arbre *KDT_Creer(Donnee *T, int i, int j, int a);
 
+// Ajoute dans le tableau d'obstacles F les obstacles de l'arbre
+// désigné par le noeud racine N qui sont à une distance inférieure à
+// r du point p. Le paramètre a désigne l'axe courant (0 ou 1) et
+// change à chaque niveau de récursion.
+void KDT_PointsDansBoule(TabObstacles *F, Noeud *N, Point *p, double r, int a);
+
 
 #endif

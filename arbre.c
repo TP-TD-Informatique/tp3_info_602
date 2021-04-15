@@ -148,16 +148,12 @@ int comp(void *d1, void *d2, void *a) {
     Donnee *D1 = (Donnee *) d1;
     Donnee *D2 = (Donnee *) d2;
 
-    if (D1->x[axe] < D2->x[axe]) {
-        printf("-1\n");
+    if (D1->x[axe] < D2->x[axe])
         return -1;
-    } else if (D1->x[axe] == D2->x[axe]) {
-        printf("0\n");
-        return 0;
-    } else { // D1->x[axe] > D2->x[axe]
-        printf("1\n");
+    else if (D1->x[axe] > D2->x[axe])
         return 1;
-    }
+    else // D1->x[axe] == D2->x[axe]
+        return 0;
 }
 
 Arbre *KDT_Creer(Donnee *T, int i, int j, int a) {
@@ -175,4 +171,17 @@ Arbre *KDT_Creer(Donnee *T, int i, int j, int a) {
     ModifieDroit(Racine(A), KDT_Creer(T, m + 1, j, (a + 1) % DIM));
 
     return A;
+}
+
+void KDT_PointsDansBoule(TabObstacles *F, Noeud *N, Point *p, double r, int a) {
+    if (N != NULL) {
+        Obstacle *o = Valeur(N);
+        if (distance(p->x[0], p->x[1], o->x[0], o->x[1]) < r)
+            TabObstacles_ajoute(F, *o);
+
+        if (p->x[a] <= o->x[a] + r)
+            KDT_PointsDansBoule(F, Gauche(N), p, r, (a + 1) % DIM);
+        if (p->x[a] >= o->x[a] - r)
+            KDT_PointsDansBoule(F, Droit(N), p, r, (a + 1) % DIM);
+    }
 }

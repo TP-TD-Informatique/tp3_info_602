@@ -473,13 +473,19 @@ Particule calculRebond(Particule p, Point center, double r, double att) {
 
 
 void deplaceParticule(Contexte *pCtxt, Particule *p) {
-    /* Déplace p */
-    TabObstacles *O = &(pCtxt->TabO);
+    // Déplace p en supposant qu'il n'y a pas de collision.
+    Point pp;
+    pp.x[0] = p->x[0] + DT * p->v[0];
+    pp.x[1] = p->x[1] + DT * p->v[1];
+
+    TabObstacles F; // obstacles potentiels;
+    TabObstacles_init(&F);
+    KDT_PointsDansBoule(&F, Racine(pCtxt->kdtree), &pp, 0.05, 0);
 
     bool collision = false;
     int i = 0;
-    while (!collision && i < TabObstacles_nb(O)) {
-        Obstacle obs = TabObstacles_get(O, i);
+    while (!collision && i < TabObstacles_nb(&F)) {
+        Obstacle obs = TabObstacles_get(&F, i);
         if (distance(p->x[0], p->x[1], obs.x[0], obs.x[1]) <= obs.r) {
             collision = true;
             Point point;
@@ -491,11 +497,12 @@ void deplaceParticule(Contexte *pCtxt, Particule *p) {
         i++;
     }
 
-
     if (!collision) {
         p->x[0] += DT * p->v[0];
         p->x[1] += DT * p->v[1];
     }
+
+    TabObstacles_termine(&F); // pour éviter les fuites mémoire.
 }
 
 void deplaceTout(Contexte *pCtxt) {
@@ -531,7 +538,7 @@ gboolean mouse_clic_reaction(GtkWidget *widget, GdkEventButton *event, gpointer 
     initObstacle(&o, DISQUE, p.x[0], p.x[1], 0.05, 0.6, 0, 0, 0);
     TabObstacles_ajoute(&pCtxt->TabO, o);
     Detruire(pCtxt->kdtree);
-    pCtxt->kdtree = KDT_Creer(pCtxt->TabO.obstacles, 0, TabObstacles_nb(&pCtxt->TabO) -1, 0);
+    pCtxt->kdtree = KDT_Creer(pCtxt->TabO.obstacles, 0, TabObstacles_nb(&pCtxt->TabO) - 1, 0);
 
     return TRUE;
 }
