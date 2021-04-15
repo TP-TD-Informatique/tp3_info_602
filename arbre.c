@@ -142,3 +142,37 @@ void ModifieDroit(Noeud *N, Arbre *SD) {
 Donnee *Valeur(Noeud *N) {
     return &N->data;
 }
+
+int comp(void *d1, void *d2, void *a) {
+    int axe = *((int *) a);
+    Donnee *D1 = (Donnee *) d1;
+    Donnee *D2 = (Donnee *) d2;
+
+    if (D1->x[axe] < D2->x[axe]) {
+        printf("-1\n");
+        return -1;
+    } else if (D1->x[axe] == D2->x[axe]) {
+        printf("0\n");
+        return 0;
+    } else { // D1->x[axe] > D2->x[axe]
+        printf("1\n");
+        return 1;
+    }
+}
+
+Arbre *KDT_Creer(Donnee *T, int i, int j, int a) {
+    if (i > j)
+        return NULL;
+
+    if (i == j)
+        return Creer0(&T[i]);
+
+    qsort_r(T + i, j - i + 1, sizeof(Donnee), comp, &a);
+
+    int m = (i + j) / 2;
+    Arbre *A = Creer0(&T[m]);
+    ModifieGauche(Racine(A), KDT_Creer(T, i, m - 1, (a + 1) % DIM));
+    ModifieDroit(Racine(A), KDT_Creer(T, m + 1, j, (a + 1) % DIM));
+
+    return A;
+}

@@ -1,8 +1,12 @@
 #ifndef _ARBRE_H_
 #define _ARBRE_H_
 
+#include "obstacles.h"
+#include "stdio.h"
+
+
 /* A vous de changer cela. */
-typedef int Donnee;
+typedef Obstacle Donnee;
 
 /**
  * Copie une donnée dans une autre. Cette fonction est utile lorsque
@@ -132,6 +136,14 @@ extern void ModifieDroit(Noeud *N, Arbre *SD);
  * @param N un pointeur vers un noeud valide.
  */
 extern Donnee *Valeur(Noeud *N);
+
+
+// Si T est un Obstacle* pointant vers la première case d'un tableau
+// d'Obstacle, i < j désignent les indices de début et de fin dans le
+// tableau T, a est l'axe (0 ou 1) utilisé pour découper le plan.
+// Alors cette fonction crée et retourne l'arbre binaire (arbre k-D)
+// stockant tous les obstacles spécifiés.
+Arbre *KDT_Creer(Donnee *T, int i, int j, int a);
 
 
 #endif

@@ -7,6 +7,7 @@
 #include "particules.h"
 #include "forces.h"
 #include "obstacles.h"
+#include "arbre.h"
 
 //-----------------------------------------------------------------------------
 // Déclaration des types
@@ -21,6 +22,7 @@ typedef struct SContexte {
     GtkWidget *drawing_area;
     TabParticules TabP;
     TabObstacles TabO;
+    Arbre *kdtree;
     Force forces[NB_FORCES];
     GtkWidget *label_nb;
     GtkWidget *label_distance;
@@ -87,6 +89,8 @@ void drawParticule(Contexte *pCtxt, cairo_t *cr, Particule p);
    Fonction de base qui affiche un disque de centre (x,y) et de rayon r via cairo.
 */
 void drawPoint(cairo_t *cr, double x, double y, double r);
+
+void viewerKDTree(Contexte *pCtxt, cairo_t *cr, Noeud *N, Point bg, Point hd, int a);
 
 /**
    Fonction appelée régulièrement (tous les DT secondes) et qui s'occupe de (presque tout):
@@ -160,6 +164,7 @@ int main(int argc,
     Contexte context;
     TabParticules_init(&context.TabP);
     TabObstacles_init(&context.TabO);
+    context.kdtree = ArbreVide();
 
     /* Passe les arguments à GTK, pour qu'il extrait ceux qui le concernent. */
     gtk_init(&argc, &argv);
@@ -205,6 +210,10 @@ gboolean expose_evt_reaction(GtkWidget *widget, GdkEventExpose *event, gpointer 
         drawPoint(cr, p.x[0], p.x[1], 10);
     }
 
+    Point bg = {{-10.0, -10.0}};
+    Point hd = {{10.0, 10.0}};
+    viewerKDTree(pCtxt, cr, Racine(pCtxt->kdtree), bg, hd, 0);
+
     // On a fini, on peut détruire la structure.
     cairo_destroy(cr);
     return TRUE;
@@ -242,6 +251,36 @@ void drawPoint(cairo_t *cr, double x, double y, double r) {
     cairo_arc(cr, x, y, r, 0.0, 2.0 * 3.14159626);
     cairo_fill(cr);
 }
+
+void viewerKDTree(Contexte *pCtxt, cairo_t *cr, Noeud *N, Point bg, Point hd, int a) {
+    if (N != ArbreVide()) {
+        int b = (a + 1) % DIM;
+        Obstacle *q = Valeur(N);
+        Point p, p1, p2;
+        p1.x[a] = q->x[a];
+        p1.x[b] = bg.x[b];
+        p2.x[a] = q->x[a];
+        p2.x[b] = hd.x[b];
+        cairo_set_source_rgb(cr, 0.0, 1.0, 1.0);
+        Point draw_p1 = point2DrawingAreaPoint(pCtxt, p1);
+        Point draw_p2 = point2DrawingAreaPoint(pCtxt, p2);
+        cairo_move_to(cr, draw_p1.x[0], draw_p1.x[1]);
+        cairo_line_to(cr, draw_p2.x[0], draw_p2.x[1]);
+        cairo_stroke(cr);
+        cairo_set_source_rgb(cr, 1.0, 0.0, 0.0);
+        p.x[0] = q->x[0];
+        p.x[1] = q->x[1];
+        Point dp = point2DrawingAreaPoint(pCtxt, p);
+        drawPoint(cr, dp.x[0], dp.x[1], 3);
+        Point hd2 = hd;
+        hd2.x[a] = q->x[a];
+        Point bg2 = bg;
+        bg2.x[a] = q->x[a];
+        viewerKDTree(pCtxt, cr, Gauche(N), bg, hd2, b);
+        viewerKDTree(pCtxt, cr, Droit(N), bg2, hd, b);
+    }
+}
+
 
 void drawLine(cairo_t *cr, Point p, Point q) {
     cairo_move_to(cr, p.x[0], p.x[1]);
@@ -340,8 +379,9 @@ void fontaineVariable(Contexte *pCtxt,
     TabParticules *P = &pCtxt->TabP;
     if ((rand() / (double) RAND_MAX) < p) {
         Particule q;
-        double v = (rand() / (double) RAND_MAX) * var;
-        initParticule(&q, x, y, vx - v, vy + v, m);
+        double v1 = (rand() / (double) RAND_MAX) * var;
+        double v2 = (rand() / (double) RAND_MAX) * var;
+        initParticule(&q, x, y, vx - v1, vy + v2, m);
         TabParticules_ajoute(P, q);
     }
 }
@@ -483,13 +523,15 @@ gboolean mouse_clic_reaction(GtkWidget *widget, GdkEventButton *event, gpointer 
     int x = event->x;
     int y = event->y;
 
-    Obstacle *o = (Obstacle *) malloc(sizeof(Obstacle));
+    Obstacle o;
     Point p;
     p.x[0] = x;
     p.x[1] = y;
     p = drawingAreaPoint2Point(pCtxt, p);
-    initObstacle(o, DISQUE, p.x[0], p.x[1], 0.05, 0.6, 0, 0, 0);
-    TabObstacles_ajoute(&pCtxt->TabO, *o);
+    initObstacle(&o, DISQUE, p.x[0], p.x[1], 0.05, 0.6, 0, 0, 0);
+    TabObstacles_ajoute(&pCtxt->TabO, o);
+    Detruire(pCtxt->kdtree);
+    pCtxt->kdtree = KDT_Creer(pCtxt->TabO.obstacles, 0, TabObstacles_nb(&pCtxt->TabO) -1, 0);
 
     return TRUE;
 }
